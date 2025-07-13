@@ -1,11 +1,13 @@
 (function () {
   const MAX_JQUERY_ATTEMPTS = 10;
+  const MAX_PAGINATION_RETRIES = 10;
 
   function waitForjQuery(callback) {
     let attempts = 0;
     const interval = setInterval(() => {
       attempts++;
       if (typeof window.jQuery !== "undefined") {
+        console.log("✅ jQuery detected.");
         clearInterval(interval);
         callback();
       } else if (attempts >= MAX_JQUERY_ATTEMPTS) {
@@ -17,74 +19,85 @@
     }, 1000);
   }
 
-  function initializeLinkEnhancer() {
-    console.log("🚀 Initializing NSE symbol hover enhancer...");
+  function enhanceNseLinks() {
+    const $links = $('a.symbol-word-break');
 
-    let currentMenu = null;
-    let hideTimeout;
+    if ($links.length > 0) {
+      console.log(`🔗 Enhancing ${$links.length} NSE links...`);
 
-    function removeExistingMenu() {
-      if (currentMenu) {
-        currentMenu.remove();
-        currentMenu = null;
+      const today = new Date().toISOString().split("T")[0]; // yyyy-mm-dd
+      const storedDate = localStorage.getItem("clickedSymbolsDate");
+
+      if (storedDate !== today) {
+        // Reset storage for new day
+        localStorage.setItem("clickedSymbolsDate", today);
+        localStorage.setItem("clickedSymbols", JSON.stringify([]));
       }
-    }
 
-    function bindHoverMenus() {
-      $("a.symbol-word-break").off("mouseenter mouseleave").each(function () {
-        const symbol = $(this).text().trim();
+      const clickedSymbols = JSON.parse(localStorage.getItem("clickedSymbols") || "[]");
 
-        $(this).on("mouseenter", function (e) {
-          clearTimeout(hideTimeout);
-          removeExistingMenu();
+      $links.each(function () {
+        const $link = $(this);
+        const originalSymbol = $link.text().trim();
+        const tvSymbol = originalSymbol.replace("-", "_");
+        const tvUrl = `https://in.tradingview.com/chart/?symbol=NSE:${tvSymbol}`;
+        const screenerUrl = `https://www.screener.in/company/${originalSymbol}/`;
 
-          const rect = this.getBoundingClientRect();
-          const menu = document.createElement("div");
-          menu.className = "stock-popup-menu";
-          menu.innerHTML = `
-            <a href="https://in.tradingview.com/chart/?symbol=NSE:${symbol}" target="_blank">📈 TradingView</a> |
-            <a href="https://www.screener.in/company/${symbol}/" target="_blank">🔍 Screener</a>
-          `;
+        // Set TradingView link
+        $link.attr("href", tvUrl).attr("target", "_blank");
 
-          menu.style.top = `${window.scrollY + rect.top - 5}px`;
-          menu.style.left = `${window.scrollX + rect.right + 10}px`;
-          document.body.appendChild(menu);
+        // Add "clicked" highlight if applicable
+        if (clickedSymbols.includes(originalSymbol)) {
+          $link.addClass("clicked-symbol");
+        }
 
-          currentMenu = menu;
-
-          menu.addEventListener("mouseenter", () => clearTimeout(hideTimeout));
-          menu.addEventListener("mouseleave", () => {
-            hideTimeout = setTimeout(removeExistingMenu, 300);
-          });
+        // On TradingView click, mark as clicked
+        $link.off("click").on("click", function () {
+          if (!clickedSymbols.includes(originalSymbol)) {
+            clickedSymbols.push(originalSymbol);
+            localStorage.setItem("clickedSymbols", JSON.stringify(clickedSymbols));
+          }
+          $link.addClass("clicked-symbol");
         });
 
-        $(this).on("mouseleave", function () {
-          hideTimeout = setTimeout(removeExistingMenu, 300);
-        });
+        // Add Screener icon if not present
+        if ($link.next(".screener-link").length === 0) {
+          const screenerLink = $(
+            `<a class="screener-link" href="${screenerUrl}" target="_blank" title="View on Screener" style="margin-left: 5px; text-decoration: none;">🔍</a>`
+          );
+          $link.after(screenerLink);
+        }
       });
     }
+  }
 
-    function waitForLinksAndBind(attempts = 0) {
-      const links = $("a.symbol-word-break");
-      if (links.length > 1) {
-        bindHoverMenus();
-      } else if (attempts < 10) {
-        setTimeout(() => waitForLinksAndBind(attempts + 1), 1000);
-      } else {
-        console.warn("❌ NSE links not found after 10 attempts.");
-      }
-    }
+  function observePaginationClicks() {
+    $('#first, #prev, #next, #last').on('click', () => {
+      console.log("🔄 Pagination button clicked. Monitoring DOM...");
 
-    // Initial load
-    waitForLinksAndBind();
-
-    // After pagination clicks
-    $(document).on("click", ".paginationWrap button.btn", () => {
-      console.log("🔄 Pagination clicked. Rebinding after delay...");
-      setTimeout(waitForLinksAndBind, 1500);
+      let attempts = 0;
+      const interval = setInterval(() => {
+        attempts++;
+        const links = $('a.symbol-word-break');
+        if (links.length > 1) {
+          console.log("✅ Links found after pagination. Enhancing...");
+          enhanceNseLinks();
+          clearInterval(interval);
+        } else if (attempts >= MAX_PAGINATION_RETRIES) {
+          console.warn("❌ Pagination retry limit reached. Aborting.");
+          clearInterval(interval);
+        } else {
+          console.log(`⏳ Waiting for links... Retry ${attempts}/${MAX_PAGINATION_RETRIES}`);
+        }
+      }, 1000);
     });
   }
 
-  waitForjQuery(initializeLinkEnhancer);
-})();
+  function initialize() {
+    console.log("🚀 Initializing NSE symbol enhancer...");
+    enhanceNseLinks();
+    observePaginationClicks();
+  }
 
+  waitForjQuery(initialize);
+})();
