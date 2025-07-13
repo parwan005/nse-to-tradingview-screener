@@ -1,24 +1,20 @@
-.stock-popup-menu {
-  position: absolute;
-  background-color: #fff;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  padding: 8px 12px;
-  z-index: 10000;
-  font-size: 14px;
-  white-space: nowrap;
-  pointer-events: auto;
-  transition: opacity 0.1s ease-in-out;
+/* Style for links that have already been clicked */
+.clicked-symbol {
+  color: gray !important;
+  font-style: italic;
+  text-decoration: line-through;
 }
 
-.stock-popup-menu a {
-  color: #0077cc;
+/* Style for the Screener icon/link added next to each symbol */
+.screener-link {
+  margin-left: 6px;
+  font-size: 13px;
   text-decoration: none;
-  margin: 0 4px;
+  vertical-align: middle;
+  color: #0077cc;
 }
 
-.stock-popup-menu a:hover {
+.screener-link:hover {
   text-decoration: underline;
+  color: #005999;
 }
-
