@@ -72,25 +72,29 @@
   }
 
   function observePaginationClicks() {
-    $('#first, #prev, #next, #last').on('click', () => {
-      console.log("🔄 Pagination button clicked. Monitoring DOM...");
+		// Event listener for pagination + sorting header clicks
+		$('#first, #prev, #next, #last, .toggleIcon').off('click').on('click', function () {
+			console.log("🔄 Pagination or Sorting clicked. Monitoring DOM for new links...");
 
-      let attempts = 0;
-      const interval = setInterval(() => {
-        attempts++;
-        const links = $('a.symbol-word-break');
-        if (links.length > 1) {
-          console.log("✅ Links found after pagination. Enhancing...");
-          enhanceNseLinks();
-          clearInterval(interval);
-        } else if (attempts >= MAX_PAGINATION_RETRIES) {
-          console.warn("❌ Pagination retry limit reached. Aborting.");
-          clearInterval(interval);
-        } else {
-          console.log(`⏳ Waiting for links... Retry ${attempts}/${MAX_PAGINATION_RETRIES}`);
-        }
-      }, 1000);
-    });
+			let attempts = 0;
+			const maxAttempts = 10;
+
+			const paginationCheckInterval = setInterval(() => {
+				attempts++;
+				const links = $('a.symbol-word-break');
+
+				if (links.length > 1) {
+					console.log("✅ New symbol links detected after navigation. Updating...");
+					enhanceNseLinks();
+					clearInterval(paginationCheckInterval);
+				} else if (attempts >= maxAttempts) {
+					console.warn("❌ Gave up after 10 attempts. Links not found.");
+					clearInterval(paginationCheckInterval);
+				} else {
+					console.log(`⏳ Waiting for updated DOM... Attempt ${attempts}/${maxAttempts}`);
+				}
+			}, 1000);
+		});
   }
 
   function initialize() {
